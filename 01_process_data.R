@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 library("here")
-library("tidyverse")
+library("tidytable")
 library("janitor")
 library("wrapR") #  devtools::install_github("bcgov/wrapR")
 library("readxl")
@@ -56,6 +56,15 @@ for_heatmap <- long%>%
          )%>%
   select(-job_openings)%>%
   camel_to_title()
+
+top_ten <- for_heatmap%>%
+  group_by(industry, noc4)%>%
+  summarize(employment=sum(employment))%>%
+  arrange(industry, desc(employment))%>%
+  top_n(employment, n=10)%>%
+  select(industry, noc4)
+
+for_heatmap <- semi_join(for_heatmap, top_ten) #top 10 occupations for each sub-industry
 
 write_rds(for_heatmap, here("processed_data", "for_heatmap.rds"))
 #load the stokes inputs---------------
