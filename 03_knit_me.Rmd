@@ -1,0 +1,94 @@
+---
+title: "<br><br><br><br>Construction Workforce Development Strategy"
+output: 
+  slidy_presentation:
+    css: style.css
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(here)
+library(flextable)
+library(officer)
+knitr::opts_chunk$set(echo = FALSE)
+saved_stuff <- readRDS(here("out","saved_stuff.rds"))
+knitr::opts_template$set(fullwidth = list(
+  fig.width = 16, fig.height = 7,
+  fig.retina = 2, out.width = '100%'
+))
+```
+
+## Construction information provided to Stokes:
+
+```{r, opts.label='fullwidth'}
+saved_stuff$to_stokes
+```
+
+## 2022 LMO labour market tightness:
+
+```{r, opts.label='fullwidth'}
+saved_stuff$res_heat
+```
+
+## 2022 LMO labour market tightness:
+
+```{r, opts.label='fullwidth'}
+saved_stuff$non_res_heat
+```
+
+## 2022 LMO labour market tightness:
+
+```{r, opts.label='fullwidth'}
+saved_stuff$heavy_heat
+```
+
+## 2022 LMO labour market tightness:
+
+```{r, opts.label='fullwidth'}
+saved_stuff$special_heat
+```
+
+## 2022 LMO for the 4 construction sub-industries.
+
+```{r, opts.label='fullwidth'}
+saved_stuff$lmo_plots
+```
+
+## Major Project Inventory: job loss due to completion
+
+```{r, opts.label='fullwidth', warning=FALSE}
+saved_stuff$mpi_plot
+```
+
+## MPI: historic conversion rates
+
+* Roughly 40% of proposed projects pre 2012 started construction by 2022.
+
+```{r, ft.left=1.75, ft.top=1.75}
+saved_stuff$status_post_2011 %>%
+  flextable() %>%
+  theme_zebra()%>%
+  autofit()
+```
+
+## Length of time spent in inventory prior to the start of construction
+
+```{r, opts.label='fullwidth', warning=FALSE}
+saved_stuff$waiting_time_MPI
+```
+
+## MPI: proposed construction start dates  
+
+* Most pre-construction projects do not predict a construction start date.
+
+
+```{r, ft.left=1.75, ft.top=1.75}
+saved_stuff$unstarted%>%
+  flextable() %>%
+  theme_zebra()%>%
+  autofit()
+```
+
+
+

@@ -10,18 +10,22 @@ library(ggthemes)
 library(openxlsx)
 #constants-----------------
 wb <- createWorkbook()
+saved_stuff <- list()
 stokes_cap= "Source: J:\\Labour Economics\\BC Labour Market Outlook\\2022 Edition (2022-2032)\\Model Output (Stokes)\\FINAL Macro forecast (May 10, 2022)\\BritishColumbiaTables.xlsx"
 #functions---------------------
 tbbl_to_excel <- function(tbbl){
-  addWorksheet(wb, sheet = print(as.character(substitute(tbbl))), gridLines = TRUE)
-  writeData(wb, sheet = print(as.character(substitute(tbbl))), x = tbbl, rowNames = FALSE, withFilter = TRUE)
+  sheet_name <- str_replace(print(as.character(substitute(tbbl))), "_excel", "")
+  addWorksheet(wb, sheet = sheet_name, gridLines = TRUE)
+  writeData(wb, sheet = sheet_name, x = tbbl, rowNames = FALSE, withFilter = TRUE)
 
 }
-ggplot_to_excel <- function(gg){
+save_ggplot <- function(gg){
+  saved_stuff[[as.character(substitute(gg))]] <- gg
   print(gg) # plot needs to be showing
   addWorksheet(wb, sheet = print(as.character(substitute(gg))), gridLines = TRUE)
   insertPlot(wb, print(as.character(substitute(gg))), width = 16, height = 9, fileType = "png", units = "in", dpi=300)
-}
+  return(saved_stuff)
+  }
 construction_start_date <- function(tbbl){
   temp <- tbbl%>%
     filter(project_status=="Construction started")
@@ -35,8 +39,9 @@ construction_start_date <- function(tbbl){
 make_plt <- function(tbbl, type, ttl, sub_ttl, cap){
   plt <- ggplot()+
     scale_y_continuous(labels=scales::comma)+
-    theme_excel_new() +
+    theme_minimal()+
     scale_colour_excel_new() +
+    scale_fill_excel_new()+
     expand_limits(y = 0)+
     labs(title=ttl,
          subtitle=sub_ttl,
@@ -51,9 +56,7 @@ make_plt <- function(tbbl, type, ttl, sub_ttl, cap){
       geom_line(data=tbbl,  mapping=aes(year, value, colour=name))
   }else if(type=="area"){
     plt <- plt +
-      geom_area(data=tbbl,  mapping=aes(year, value, fill=fct_reorder(name, value)), alpha=.75)+
-      scale_fill_excel_new()
-      #scale_fill_brewer(palette="Dark2")
+      geom_area(data=tbbl,  mapping=aes(year, value, fill=fct_reorder(name, value)), alpha=.75)
   }else{
     stop('type needs to be "line" or "area"')
   }
@@ -98,10 +101,10 @@ heatmap_of <- function(ind){
 (heavy_heat <- heatmap_of("Heavy And Civil Engineering Construction"))
 (special_heat <- heatmap_of("Specialty Trade Contractors"))
 
-ggplot_to_excel(res_heat)
-ggplot_to_excel(non_res_heat)
-ggplot_to_excel(heavy_heat)
-ggplot_to_excel(special_heat)
+saved_stuff <- save_ggplot(res_heat)
+saved_stuff <- save_ggplot(non_res_heat)
+saved_stuff <- save_ggplot(heavy_heat)
+saved_stuff <- save_ggplot(special_heat)
 
 #plots based on data supplied to stokes-----------------------
 
@@ -112,10 +115,9 @@ housing_starts <- indicators%>%
   filter(name %in% c("Housing Starts (000s)","Household Formation (000s)"))%>%
   mutate(year=as.numeric(year))
 
-housing_starts%>%
-  pivot_wider()%>%
-  tbbl_to_excel()
-
+housing_starts_excel <- housing_starts%>%
+  pivot_wider()
+tbbl_to_excel(housing_starts_excel)
 
 residential_investment <- investment%>%
   filter(thing %in% c("Total Residential Investment","New Housing"))%>%
@@ -125,9 +127,9 @@ residential_investment <- investment%>%
   pivot_longer(cols=-year)%>%
   filter(name !="Total Residential Investment")
 
-residential_investment%>%
-  pivot_wider()%>%
-  tbbl_to_excel()
+residential_investment_excel <- residential_investment%>%
+  pivot_wider()
+  tbbl_to_excel(residential_investment_excel)
 
 non_residential <- investment%>%
   filter(thing %in% c("Engineering Construction",
@@ -141,21 +143,24 @@ non_residential <- investment%>%
   mutate(`ICI buildings`=`Industrial Construction`+`Inst. & Gov't Construction`+`Commercial Construction`)%>%
   pivot_longer(cols = -year, names_to = "name", values_to = "value")
 
-non_residential%>%
-  pivot_wider()%>%
-  tbbl_to_excel()
+non_residential_excel <-non_residential %>%
+  pivot_wider()
+  tbbl_to_excel(non_residential_excel)
 
-housing_starts_plt <- make_plt(housing_starts,
+housing_starts_plt <- make_plt(
+         housing_starts,
          "line",
          "Residential Construction",
          "Housing Starts and Household Formations (units in 000s)",
          "")
 
-residential_investment_plt <- make_plt(residential_investment,
+residential_investment_plt <- make_plt(
+         residential_investment,
          "area",
          "Residential Construction",
          "Total Residential Investment (2012 Millions $)",
-         "")
+         "")+
+  scale_y_continuous(labels=function(x) scales::dollar(x, suffix = 'M'))
 
 engineering_vs_ici_plt <- non_residential%>%
   filter(name %in% c("Engineering Construction","ICI buildings"))%>%
@@ -163,7 +168,8 @@ engineering_vs_ici_plt <- non_residential%>%
          "line",
          "Non-residential Construction",
          "Investment (2012 Millions $)",
-         "")
+         "")+
+  scale_y_continuous(labels=function(x) scales::dollar(x, suffix = 'M'))
 
 ici_plt <- non_residential%>%
   filter(name %in% c("Industrial Construction",
@@ -173,20 +179,21 @@ ici_plt <- non_residential%>%
     "line",
     "Non-residential Construction",
     "Investment: industrial, commercial and institutional (2012 Millions $)",
-    "")
+    "")+
+  scale_y_continuous(labels=function(x) scales::dollar(x, suffix = 'M'))
 
 to_stokes <-(housing_starts_plt+residential_investment_plt)/(engineering_vs_ici_plt+ici_plt)+
   plot_annotation(caption = stokes_cap)
-ggplot_to_excel(to_stokes)
+saved_stuff <- save_ggplot(to_stokes)
 
 
 #employment--------------------------
 
 construction_employment <- read_rds(here("processed_data", "construction_employment.rds"))
 
-construction_employment%>%
-  pivot_wider()%>%
-  tbbl_to_excel()
+construction_employment_excel <- construction_employment%>%
+  pivot_wider()
+  tbbl_to_excel(construction_employment_excel)
 
 construction_employment_plt <- construction_employment%>%
   make_plt("area",
@@ -199,24 +206,22 @@ construction_employment_plt <- construction_employment%>%
 construction_forecast <- read_rds(here("processed_data", "construction.rds"))%>%
   filter(name %in% c("Job Openings","Employment","Expansion Demand", "Replacement Demand"))
 
-construction_forecast%>%
-  pivot_wider()%>%
-  tbbl_to_excel()
+construction_forecast_excel <- construction_forecast%>%
+  pivot_wider()
+  tbbl_to_excel(construction_forecast_excel)
 
 construction_forecast_plt <- construction_forecast%>%
   ggplot(aes(year, value, fill=fct_reorder(industry, value)))+
     geom_col(position="dodge", alpha=.75)+
-#  scale_fill_brewer(palette="Dark2")+
-  scale_y_continuous(labels=scales::comma)+
+    scale_y_continuous(labels=scales::comma)+
     facet_wrap(~name, scales = "free_y")+
-  theme_excel_new() +
-  scale_fill_excel_new() +
- # theme_minimal()+
-  theme(legend.position="bottom")+
-  labs(x="",y="",fill="",caption="Source: 2022 LMO")
+    theme_minimal() +
+    scale_fill_excel_new() +
+    theme(legend.position="bottom")+
+    labs(x="",y="",fill="",caption="Source: 2022 LMO")
 
 lmo_plots <- construction_employment_plt+construction_forecast_plt+ plot_layout(guides = "collect") & theme(legend.position = "bottom")
-ggplot_to_excel(lmo_plots)
+saved_stuff <- save_ggplot(lmo_plots)
 
 
 #mpi stuff-------------------------------
@@ -262,7 +267,7 @@ positive_waits <- ggplot(filter(mpi, entry_to_start_duration>0), aes(entry_to_st
        caption="Source: BC Major Project Inventory")
 
 waiting_time_MPI <- all_waits+positive_waits
-ggplot_to_excel(waiting_time_MPI)
+saved_stuff <- save_ggplot(waiting_time_MPI)
 
 mpi_for_lm <- mpi%>%
   filter(construction_jobs>0)
@@ -324,7 +329,7 @@ plt2 <- ggplot(value_by_expected_completion, aes(year_of_completion, predict_job
        caption="Source: All incomplete MPI projects where construction has started.")
 
 mpi_plot <- plt0+plt1+plt2
-ggplot_to_excel(mpi_plot)
+saved_stuff <- save_ggplot(mpi_plot)
 
 #what proportion of projects that have not started construction get completed within 10 years?
 
@@ -363,25 +368,32 @@ status_post_2011 <- mpi_long%>%
          category=map_chr(data, function(tbbl) tbbl$project_category_name[1]))%>%
   group_by(category)%>%
   summarize(eventually_started=sum(construction_started),
-            total=n(),
-            percentage=eventually_started/total)%>%
-  mutate(percentage=scales::percent(percentage, accuracy = 1))
+            total=n())%>%
+  janitor::adorn_totals()%>%
+  mutate(percentage=eventually_started/total)%>%
+  mutate(percentage=scales::percent(percentage, accuracy = 1),
+         category=str_replace_na(category, "?"))
 colnames(status_post_2011) <- wrapR::make_title(colnames(status_post_2011))
 
 tbbl_to_excel(status_post_2011)
+saved_stuff$status_post_2011 <-status_post_2011
+
 
 #Unstarted projects currently in MPI------------------
 
 unstarted <- mpi%>%
   filter(construction_started==FALSE,
          is.finite(estimated_cost))%>%
-  mutate(predict_jobs=.4*predict_jobs, #historically about 40% of unstarted projects in the MPI start within the following 10 years.
+  mutate(predict_jobs=.4 * predict_jobs, #historically about 40% of unstarted projects in the MPI start within the following 10 years.
          expected_start=year(expected_start))%>%
   group_by(expected_start)%>%
-  summarize(new_jobs= scales::comma(sum(predict_jobs)))%>%
+  summarize(estimated_cost = scales::comma(sum(estimated_cost)),
+    new_jobs= scales::comma(sum(predict_jobs)))%>%
   filter(expected_start>2021 | is.na(expected_start))%>%
   mutate(expected_start=str_replace_na(expected_start, "?"))
 colnames(unstarted) <- wrapR::make_title(colnames(unstarted))
+saved_stuff$unstarted <-unstarted
 
 tbbl_to_excel(unstarted)
 saveWorkbook(wb, here::here("out","cws_from_rich.xlsx"), overwrite = TRUE)
+saveRDS(saved_stuff, here("out", "saved_stuff.rds"))
