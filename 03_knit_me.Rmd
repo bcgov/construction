@@ -21,7 +21,7 @@ knitr::opts_template$set(fullwidth = list(
 
 ## Construction information provided to Stokes:
 
-```{r, opts.label='fullwidth'}
+```{r, opts.label='fullwidth', warning=FALSE}
 saved_stuff$to_stokes
 ```
 

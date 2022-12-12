@@ -75,7 +75,7 @@ heatmap_of <- function(ind){
   tbbl <- lmo_data%>%
     filter(industry==ind)
   ggplot(tbbl, aes(year,
-                       fct_reorder(noc4,employment),
+                       fct_reorder(noc4, employment),
                        fill=jo_per_emp,
                        label=jo_per_emp
   ))+

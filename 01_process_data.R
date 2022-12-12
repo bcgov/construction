@@ -15,6 +15,8 @@ library("tidytable")
 library("janitor")
 library("wrapR") #  devtools::install_github("bcgov/wrapR")
 library("readxl")
+library("readr")
+library("stringr")
 
 #read in dataframes--------------
 jo_long <- vroom::vroom(here("raw_data",
@@ -35,7 +37,8 @@ employment_long <- vroom::vroom(here("raw_data",
 noc_mapping <- vroom::vroom(here::here("raw_data","noc_mapping.csv"))
 
 construction_noc <- vroom::vroom(here::here("raw_data","Construction Trades.csv"), delim = ",")%>%
-  pull(noc4)
+  pull(noc4)%>%
+  unique()
 
 industry_mapping <- vroom::vroom(here::here("raw_data","industry_to_agg_mapping.csv"), delim=",")%>%
   distinct()%>%
@@ -74,14 +77,14 @@ path <- here("raw_data", "BritishColumbiaTables.xlsx")
 indicators <- read_excel(path, sheet="Key Indicators", skip=2, na = "NA")%>%
   rename(name=`...1`)%>%
   pivot_longer(cols=-name, names_to = "year", values_to = "value")%>%
-  na.omit(name)%>%
+  filter(!is.na(name))%>%
   filter(name!="% Change")%>%
   write_rds(here("processed_data", "indicators.rds"))
 
 investment <- read_excel(path, sheet="Investment", skip=2, na = "NA")%>%
   rename(thing=`...1`)%>%
   pivot_longer(cols=-thing, names_to = "year", values_to = "value")%>%
-  na.omit(thing)%>%
+  filter(!is.na(thing))%>%
   filter(thing!="% Change")%>%
   write_rds(here("processed_data", "investment.rds"))
 
